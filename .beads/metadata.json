@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "server",
+  "dolt_database": "beepfinder",
+  "project_id": "e7d83036-d2c6-4b70-986a-542dd26d2178"
+}
