@@ -17,30 +17,80 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NotificationListScreen(vm: NotificationViewModel = viewModel()) {
+fun NotificationListScreen(
+    vm: NotificationViewModel = viewModel(),
+    isBatteryExempt: Boolean = true,
+    onRequestBatteryExemption: () -> Unit = {},
+) {
     val groups by vm.groups.collectAsStateWithLifecycle(initialValue = emptyList())
+    var batteryBannerDismissed by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("BeepFinder") })
         }
     ) { padding ->
-        if (groups.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("No audible notifications in the last 24 hours")
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            if (!isBatteryExempt && !batteryBannerDismissed) {
+                BatteryWarningBanner(
+                    onFix = onRequestBatteryExemption,
+                    onDismiss = { batteryBannerDismissed = true },
+                )
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(vertical = 8.dp)
-            ) {
-                items(groups) { group ->
-                    NotificationGroupRow(group)
-                    HorizontalDivider()
+            if (groups.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("No audible notifications in the last 24 hours")
                 }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(vertical = 8.dp)
+                ) {
+                    items(groups) { group ->
+                        NotificationGroupRow(group)
+                        HorizontalDivider()
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BatteryWarningBanner(onFix: () -> Unit, onDismiss: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+        ),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Battery optimization is on",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+                Text(
+                    text = "BeepFinder may stop recording when the screen is off.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            TextButton(onClick = onFix) {
+                Text("Fix", color = MaterialTheme.colorScheme.onErrorContainer)
+            }
+            TextButton(onClick = onDismiss) {
+                Text("Dismiss", color = MaterialTheme.colorScheme.onErrorContainer)
             }
         }
     }

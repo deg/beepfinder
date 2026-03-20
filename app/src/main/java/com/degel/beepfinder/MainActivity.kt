@@ -1,7 +1,9 @@
 package com.degel.beepfinder
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -19,13 +21,14 @@ import com.degel.beepfinder.ui.NotificationListScreen
 
 class MainActivity : ComponentActivity() {
     private val hasPermission = mutableStateOf(false)
+    private val isBatteryExempt = mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             MaterialTheme {
-                BeepFinderApp(hasPermission.value)
+                BeepFinderApp(hasPermission.value, isBatteryExempt.value)
             }
         }
     }
@@ -34,14 +37,22 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         hasPermission.value = NotificationManagerCompat.getEnabledListenerPackages(this)
             .contains(packageName)
+        val pm = getSystemService(PowerManager::class.java)
+        isBatteryExempt.value = pm.isIgnoringBatteryOptimizations(packageName)
     }
 }
 
 @Composable
-fun BeepFinderApp(hasPermission: Boolean) {
+fun BeepFinderApp(hasPermission: Boolean, isBatteryExempt: Boolean) {
     val context = LocalContext.current
     if (hasPermission) {
-        NotificationListScreen()
+        NotificationListScreen(isBatteryExempt = isBatteryExempt) {
+            context.startActivity(
+                Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = Uri.parse("package:${context.packageName}")
+                }
+            )
+        }
     } else {
         PermissionPromptScreen {
             context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
