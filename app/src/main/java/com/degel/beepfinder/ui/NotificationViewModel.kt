@@ -12,6 +12,6 @@ class NotificationViewModel(app: Application) : AndroidViewModel(app) {
         NotificationDatabase.getInstance(app).notificationDao()
     )
 
-    val groups: Flow<List<NotificationGroup>> =
-        repository.getLast24Hours().map { it.toGroups() }
+    val listItems: Flow<List<ListItem>> =
+        repository.getLast24Hours().map { it.toListItems() }
 }

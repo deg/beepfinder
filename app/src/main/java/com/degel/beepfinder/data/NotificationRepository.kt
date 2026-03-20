@@ -11,7 +11,26 @@ class NotificationRepository(private val dao: NotificationDao) {
 
     suspend fun record(packageName: String, appLabel: String) {
         val now = System.currentTimeMillis()
-        dao.insert(NotificationEntity(timestamp = now, packageName = packageName, appLabel = appLabel))
+        dao.insert(
+            NotificationEntity(
+                timestamp = now,
+                packageName = packageName,
+                appLabel = appLabel,
+                type = EntryType.NOTIFICATION.name,
+            )
+        )
         dao.deleteOlderThan(now - 24 * 60 * 60 * 1000L)
+    }
+
+    suspend fun recordServiceEvent(type: EntryType) {
+        require(type == EntryType.SERVICE_CONNECTED || type == EntryType.SERVICE_DISCONNECTED)
+        dao.insert(
+            NotificationEntity(
+                timestamp = System.currentTimeMillis(),
+                packageName = "",
+                appLabel = "",
+                type = type.name,
+            )
+        )
     }
 }

@@ -7,10 +7,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.degel.beepfinder.data.EntryType
+import com.degel.beepfinder.service.BeepListenerService
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -22,12 +26,19 @@ fun NotificationListScreen(
     isBatteryExempt: Boolean = true,
     onRequestBatteryExemption: () -> Unit = {},
 ) {
-    val groups by vm.groups.collectAsStateWithLifecycle(initialValue = emptyList())
+    val listItems by vm.listItems.collectAsStateWithLifecycle(initialValue = emptyList())
     var batteryBannerDismissed by remember { mutableStateOf(false) }
+    val serviceConnected = BeepListenerService.isConnected
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("BeepFinder") })
+            TopAppBar(
+                title = { Text("BeepFinder") },
+                actions = {
+                    ServiceStatusDot(serviceConnected)
+                    Spacer(modifier = Modifier.width(12.dp))
+                }
+            )
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
@@ -37,7 +48,7 @@ fun NotificationListScreen(
                     onDismiss = { batteryBannerDismissed = true },
                 )
             }
-            if (groups.isEmpty()) {
+            if (listItems.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -49,13 +60,44 @@ fun NotificationListScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
-                    items(groups) { group ->
-                        NotificationGroupRow(group)
-                        HorizontalDivider()
+                    items(listItems) { item ->
+                        when (item) {
+                            is ListItem.Group -> {
+                                NotificationGroupRow(item.group)
+                                HorizontalDivider()
+                            }
+                            is ListItem.Event -> {
+                                ServiceEventRow(item.event)
+                            }
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ServiceStatusDot(connected: Boolean) {
+    val color = if (connected) Color(0xFF4CAF50) else Color(0xFFF44336)
+    val label = if (connected) "Listening" else "Stopped"
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .padding(end = 0.dp),
+        ) {
+            // Colored dot
+            androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+                drawCircle(color = color)
+            }
+        }
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = color,
+        )
     }
 }
 
@@ -105,7 +147,6 @@ private fun NotificationGroupRow(group: NotificationGroup) {
         if (group.count == 1) {
             dateFmt.format(Date(group.latestTimestamp))
         } else {
-            // Show time range when multiple alerts were grouped
             "${timeFmt.format(Date(group.earliestTimestamp))} – ${timeFmt.format(Date(group.latestTimestamp))}"
         }
     }
@@ -137,5 +178,31 @@ private fun NotificationGroupRow(group: NotificationGroup) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ServiceEventRow(event: ServiceEvent) {
+    val timeFmt = remember { SimpleDateFormat("MMM d, HH:mm:ss", Locale.getDefault()) }
+    val timeStr = remember(event.timestamp) { timeFmt.format(Date(event.timestamp)) }
+    val (icon, label) = when (event.type) {
+        EntryType.SERVICE_CONNECTED -> "▶" to "Monitoring started"
+        EntryType.SERVICE_DISCONNECTED -> "⏸" to "Monitoring stopped"
+        else -> return
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(icon, style = MaterialTheme.typography.bodySmall)
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = "$label — $timeStr",
+            style = MaterialTheme.typography.bodySmall,
+            fontStyle = FontStyle.Italic,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }

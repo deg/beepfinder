@@ -11,6 +11,7 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import com.degel.beepfinder.MainActivity
 import com.degel.beepfinder.R
+import com.degel.beepfinder.data.EntryType
 import com.degel.beepfinder.data.NotificationDatabase
 import com.degel.beepfinder.data.NotificationRepository
 import kotlinx.coroutines.CoroutineScope
@@ -42,11 +43,19 @@ class BeepListenerService : NotificationListenerService() {
 
     override fun onListenerConnected() {
         super.onListenerConnected()
+        isConnected = true
         startForeground(
             STATUS_NOTIF_ID,
             buildStatusNotification("Listening for notifications…"),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
         )
+        scope.launch { repository.recordServiceEvent(EntryType.SERVICE_CONNECTED) }
+    }
+
+    override fun onListenerDisconnected() {
+        super.onListenerDisconnected()
+        isConnected = false
+        scope.launch { repository.recordServiceEvent(EntryType.SERVICE_DISCONNECTED) }
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
@@ -141,5 +150,9 @@ class BeepListenerService : NotificationListenerService() {
     companion object {
         private const val STATUS_CHANNEL_ID = "beepfinder_status"
         const val STATUS_NOTIF_ID = 1
+
+        /** True while the listener is bound and connected to the notification manager. */
+        @Volatile var isConnected: Boolean = false
+            private set
     }
 }
