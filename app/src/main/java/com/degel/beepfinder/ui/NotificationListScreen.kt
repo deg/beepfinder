@@ -3,6 +3,8 @@ package com.degel.beepfinder.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,6 +27,7 @@ fun NotificationListScreen(
     vm: NotificationViewModel = viewModel(),
     isBatteryExempt: Boolean = true,
     onRequestBatteryExemption: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
 ) {
     val listItems by vm.listItems.collectAsStateWithLifecycle(initialValue = emptyList())
     var batteryBannerDismissed by remember { mutableStateOf(false) }
@@ -36,7 +39,10 @@ fun NotificationListScreen(
                 title = { Text("BeepFinder") },
                 actions = {
                     ServiceStatusDot(serviceConnected)
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                    }
                 }
             )
         }

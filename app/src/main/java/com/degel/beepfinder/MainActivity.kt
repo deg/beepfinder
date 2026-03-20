@@ -18,6 +18,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import com.degel.beepfinder.ui.NotificationListScreen
+import com.degel.beepfinder.ui.SettingsScreen
 
 class MainActivity : ComponentActivity() {
     private val hasPermission = mutableStateOf(false)
@@ -45,18 +46,29 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun BeepFinderApp(hasPermission: Boolean, isBatteryExempt: Boolean) {
     val context = LocalContext.current
-    if (hasPermission) {
-        NotificationListScreen(isBatteryExempt = isBatteryExempt) {
-            context.startActivity(
-                Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                    data = Uri.parse("package:${context.packageName}")
-                }
-            )
-        }
-    } else {
+    var showSettings by remember { mutableStateOf(false) }
+
+    if (!hasPermission) {
         PermissionPromptScreen {
             context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
+        return
+    }
+
+    if (showSettings) {
+        SettingsScreen(onBack = { showSettings = false })
+    } else {
+        NotificationListScreen(
+            isBatteryExempt = isBatteryExempt,
+            onRequestBatteryExemption = {
+                context.startActivity(
+                    Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                        data = Uri.parse("package:${context.packageName}")
+                    }
+                )
+            },
+            onOpenSettings = { showSettings = true },
+        )
     }
 }
 
