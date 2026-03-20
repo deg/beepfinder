@@ -157,6 +157,8 @@ private fun NotificationGroupRow(group: NotificationGroup) {
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        AppIcon(packageName = group.packageName)
+        Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = group.appLabel,
