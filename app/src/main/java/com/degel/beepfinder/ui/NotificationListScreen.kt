@@ -176,6 +176,13 @@ private fun NotificationGroupRow(group: NotificationGroup) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (!group.soundLabel.isNullOrBlank()) {
+                Text(
+                    text = "♪ ${group.soundLabel}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         if (group.count > 1) {
             Spacer(modifier = Modifier.width(8.dp))

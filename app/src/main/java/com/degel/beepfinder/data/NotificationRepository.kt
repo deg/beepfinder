@@ -9,13 +9,14 @@ class NotificationRepository(private val dao: NotificationDao) {
         return dao.getLast24Hours(since)
     }
 
-    suspend fun record(packageName: String, appLabel: String) {
+    suspend fun record(packageName: String, appLabel: String, soundLabel: String? = null) {
         dao.insert(
             NotificationEntity(
                 timestamp = System.currentTimeMillis(),
                 packageName = packageName,
                 appLabel = appLabel,
                 type = EntryType.NOTIFICATION.name,
+                soundLabel = soundLabel,
             )
         )
     }

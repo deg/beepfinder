@@ -6,6 +6,9 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.database.Cursor
+import android.net.Uri
+import android.provider.MediaStore
 import androidx.core.app.NotificationCompat
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
@@ -80,13 +83,14 @@ class BeepListenerService : NotificationListenerService() {
         recentlyLogged.entries.removeAll { now - it.value > dedupeWindowMs * 10 }
 
         val appLabel = resolveAppLabel(sbn.packageName)
+        val soundLabel = resolveSoundLabel(sbn)
 
         // Update the persistent status notification to show the latest beep
         val timeStr = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(now))
         nm.notify(STATUS_NOTIF_ID, buildStatusNotification("Last: $appLabel at $timeStr"))
 
         scope.launch {
-            repository.record(sbn.packageName, appLabel)
+            repository.record(sbn.packageName, appLabel, soundLabel)
         }
     }
 
@@ -103,6 +107,34 @@ class BeepListenerService : NotificationListenerService() {
         val n = sbn.notification
         @Suppress("DEPRECATION")
         return n.sound != null || (n.defaults and Notification.DEFAULT_SOUND) != 0
+    }
+
+    /**
+     * Attempts to resolve a human-readable name for the notification sound.
+     * Returns null if the sound is the device default or cannot be identified.
+     */
+    private fun resolveSoundLabel(sbn: StatusBarNotification): String? {
+        val channelId = sbn.notification.channelId ?: return null
+        val channel = nm.getNotificationChannel(channelId) ?: return null
+        val soundUri: Uri = channel.sound ?: return null  // null = device default
+
+        // Try MediaStore first (works for content:// URIs from the media library)
+        try {
+            val cursor: Cursor? = contentResolver.query(
+                soundUri,
+                arrayOf(MediaStore.Audio.Media.TITLE),
+                null, null, null
+            )
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val title = it.getString(0)
+                    if (!title.isNullOrBlank()) return title
+                }
+            }
+        } catch (_: Exception) {}
+
+        // Fall back to the last path segment of the URI (e.g. "Tri-tone" from a resource URI)
+        return soundUri.lastPathSegment
     }
 
     private fun resolveAppLabel(packageName: String): String =

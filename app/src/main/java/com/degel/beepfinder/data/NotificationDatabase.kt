@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [NotificationEntity::class], version = 2, exportSchema = false)
+@Database(entities = [NotificationEntity::class], version = 3, exportSchema = false)
 abstract class NotificationDatabase : RoomDatabase() {
     abstract fun notificationDao(): NotificationDao
 
@@ -22,6 +22,12 @@ abstract class NotificationDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE notifications ADD COLUMN soundLabel TEXT")
+            }
+        }
+
         fun getInstance(context: Context): NotificationDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -29,7 +35,7 @@ abstract class NotificationDatabase : RoomDatabase() {
                     NotificationDatabase::class.java,
                     "beepfinder.db"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                     .also { INSTANCE = it }
             }

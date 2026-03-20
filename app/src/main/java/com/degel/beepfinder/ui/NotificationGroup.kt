@@ -10,6 +10,7 @@ data class NotificationGroup(
     val count: Int,
     val latestTimestamp: Long,
     val earliestTimestamp: Long,
+    val soundLabel: String? = null,  // from the most recent entry in the group
 )
 
 /** A single service lifecycle event to display inline in the list. */
@@ -51,6 +52,7 @@ fun List<NotificationEntity>.toListItems(): List<ListItem> {
                                 count = 1,
                                 latestTimestamp = entity.timestamp,
                                 earliestTimestamp = entity.timestamp,
+                                soundLabel = entity.soundLabel,
                             )
                         )
                     )

@@ -16,6 +16,7 @@ data class NotificationEntity(
     val packageName: String,
     val appLabel: String,
     val type: String = EntryType.NOTIFICATION.name,
+    val soundLabel: String? = null,  // Human-readable sound name, null if unknown/default
 ) {
     fun entryType(): EntryType = EntryType.valueOf(type)
 }
