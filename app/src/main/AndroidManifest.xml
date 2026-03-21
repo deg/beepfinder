@@ -1,10 +1,56 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  AndroidManifest.xml — The app's contract with the OS.
+
+  Every Android app must have a manifest. The OS reads it at install time and
+  uses it to know:
+    - What components exist (activities, services, broadcast receivers)
+    - What permissions the app needs
+    - Which activity to launch when the user taps the app icon
+
+  There is no main() entry point in Android. Instead, the OS starts whichever
+  component is appropriate: an Activity for user interaction, a Service for
+  background work, a BroadcastReceiver for system events.
+-->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <uses-permission android:name="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" />
+    <!--
+      PERMISSIONS
+      ===========
+      Android permissions come in two flavors:
+
+      1. "Normal" permissions (granted automatically at install):
+         - FOREGROUND_SERVICE, FOREGROUND_SERVICE_DATA_SYNC,
+           RECEIVE_BOOT_COMPLETED, REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+
+      2. "Sensitive" / special permissions (require explicit user action in
+         system Settings, not a runtime dialog):
+         - BIND_NOTIFICATION_LISTENER_SERVICE (our core permission)
+
+      BIND_NOTIFICATION_LISTENER_SERVICE is unusual: it's not declared as
+      <uses-permission> here because the user grants it through a dedicated
+      system Settings page ("Notification Access"), not through the standard
+      permission dialog. It appears on the service declaration below instead,
+      as android:permission, which tells the OS that only the system itself
+      may bind to this service.
+    -->
+
+    <!-- Required to call startForeground() from BeepListenerService. Without
+         this, Android 9+ will throw a SecurityException. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
+    <!-- Android 14 (API 34) requires declaring the *type* of foreground service.
+         We use DATA_SYNC because we're continuously capturing and storing data.
+         Each type maps to a corresponding permission — the OS checks both. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <!-- Lets our BootReceiver fire when the device finishes booting. Without
+         this, the broadcast is simply not delivered to our receiver. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Allows us to prompt the user to exempt our app from Doze mode battery
+         optimization. Note: Play Store requires justification for this.
+         See BeepFinderApp() in MainActivity.kt for how it's used. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
@@ -15,15 +61,45 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.BeepFinder">
 
+        <!--
+          ACTIVITY: MainActivity
+          ======================
+          An Activity is a single screen with a UI. Most apps have one Activity
+          per screen; we have one total (Settings is a composable, not an Activity).
+
+          android:exported="true" is required for any activity that can be
+          launched from outside the app (e.g., the launcher). The intent-filter
+          below marks this as the launcher entry point.
+        -->
         <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
+                <!-- MAIN + LAUNCHER = "this is the icon in the app drawer" -->
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
+        <!--
+          SERVICE: BeepListenerService
+          =============================
+          A NotificationListenerService is a Service that the OS binds to when
+          the user grants Notification Access permission in system Settings.
+
+          android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            — Only the OS may bind to this service. If any other app tries, it
+              will be rejected. This is how Android protects sensitive services.
+
+          android:foregroundServiceType="dataSync"
+            — Android 14+ requires foreground services to declare their type.
+              This must match the type passed to startForeground() in the code,
+              and must correspond to one of the declared foreground service
+              permissions above.
+
+          The intent-filter with NotificationListenerService action is what
+          tells the OS to consider this service as a notification listener.
+        -->
         <service
             android:name=".service.BeepListenerService"
             android:label="BeepFinder Listener"
@@ -33,11 +109,32 @@
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
+            <!--
+              This meta-data tells the OS to only deliver "conversations" and
+              "alerting" category notifications to our listener by default,
+              filtering out silent/ambient ones at the system level before we
+              even see them. We still apply our own audibility check in code
+              as a belt-and-suspenders measure.
+            -->
             <meta-data
                 android:name="android.service.notification.default_filter_types"
                 android:value="conversations,alerting" />
         </service>
 
+        <!--
+          RECEIVER: BootReceiver
+          =======================
+          A BroadcastReceiver handles one-shot system events. This one listens
+          for BOOT_COMPLETED so we can do any post-boot initialization.
+
+          In practice, NotificationListenerService is automatically restarted
+          by Android after boot when the notification access permission is
+          granted — we don't need to explicitly start it. The receiver exists
+          as a documented hook for future boot-time needs.
+
+          QUICKBOOT_POWERON handles some Android forks (certain OEM devices)
+          that use a non-standard boot action.
+        -->
         <receiver
             android:name=".service.BootReceiver"
             android:exported="true">

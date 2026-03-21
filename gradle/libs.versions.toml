@@ -1,3 +1,64 @@
+# gradle/libs.versions.toml — the Gradle version catalog.
+#
+# VERSION CATALOG
+# ===============
+# A version catalog centralizes all dependency versions and coordinates in one
+# file. Instead of duplicating version strings in each module's build.gradle.kts,
+# every module references the catalog via the generated `libs` accessor.
+#
+# This solves two problems:
+#   1. Version consistency: when upgrading a library, you change one line here
+#      instead of hunting through multiple build files.
+#   2. Discoverability: a single file shows every library the project depends on.
+#
+# The catalog has three sections:
+#   [versions]   — named version strings, referenced by libraries and plugins.
+#   [libraries]  — library coordinates (group:name:version) with aliases.
+#   [plugins]    — Gradle plugin IDs with versions.
+#
+# In build.gradle.kts, the catalog is accessed as:
+#   libs.versions.agp.get()                 → version string
+#   libs.androidx.core.ktx                  → library dependency
+#   libs.plugins.android.application        → plugin
+# Note: dots in alias names become dots in Kotlin accessor syntax.
+#
+# TOML FORMAT
+# ===========
+# TOML (Tom's Obvious Minimal Language) is the format for version catalogs.
+# Key syntax:
+#   key = "value"           — string assignment
+#   { key = "val", ... }    — inline table (used for library/plugin declarations)
+#   version.ref = "name"    — reference to a [versions] entry
+#
+# ANDROID GRADLE PLUGIN (AGP)
+# ============================
+# agp = "8.7.3"
+# The Android Gradle Plugin is the main Gradle extension that adds Android
+# build support. It provides the `android {}` block in build.gradle.kts and
+# all standard Android tasks (assemble, install, lint, test, etc.).
+# AGP versions are tied to specific Android Studio versions.
+#
+# KOTLIN AND KSP ALIGNMENT
+# ========================
+# kotlin = "2.0.21"
+# ksp version "2.0.21-1.0.28" (in [plugins] below)
+#
+# KSP (Kotlin Symbol Processing) version numbers encode a Kotlin compatibility
+# prefix. The "2.0.21" prefix in "2.0.21-1.0.28" MUST match the Kotlin version
+# exactly. If you upgrade Kotlin, you must find a KSP release with the matching
+# prefix, or the build will fail with a version mismatch error.
+#
+# COMPOSE BOM
+# ===========
+# compose-bom = "2024.12.01"
+# The Compose Bill of Materials pins all Compose library versions to a tested,
+# compatible set. After declaring `platform(libs.compose.bom)` in dependencies,
+# individual Compose libraries (ui, material3, etc.) don't need version numbers.
+#
+# The BOM date format (YYYY.MM.revision) corresponds to monthly Compose releases.
+# The latest compatible Compose compiler is selected automatically based on the
+# Kotlin version.
+
 [versions]
 agp = "8.7.3"
 kotlin = "2.0.21"
@@ -8,21 +69,57 @@ coroutines = "1.9.0"
 core-ktx = "1.15.0"
 activity-compose = "1.9.3"
 
+# LIBRARIES
+# =========
+# Each entry maps an alias to Maven coordinates (group:name:version).
+# version.ref = "name" refers to an entry in [versions] above.
+# Libraries in the Compose BOM group omit version (managed by the BOM).
+#
+# Alias naming convention: dashes in aliases become dots in Kotlin accessor syntax.
+# compose-bom     → libs.compose.bom
+# room-compiler   → libs.room.compiler
+# androidx-core-ktx → libs.androidx.core.ktx
+
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
 androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activity-compose" }
+
+# Compose BOM: no version here — version is pinned by the BOM dependency in build.gradle.kts.
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "compose-bom" }
+# Compose libraries below: version intentionally omitted (managed by BOM).
 compose-ui = { group = "androidx.compose.ui", name = "ui" }
 compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+# material-icons-extended: adds 900+ Material Design icons beyond the core set.
+# This artifact is large (~10MB); R8 tree-shaking removes unused icons in release builds.
 compose-material-icons = { group = "androidx.compose.material", name = "material-icons-extended" }
+
+# Room: the three-artifact split:
+#   room-runtime  — core Room classes and annotations (needed at runtime)
+#   room-ktx      — Kotlin extensions: Flow support for @Query, suspend for @Insert etc.
+#   room-compiler — annotation processor run by KSP at compile time only (not shipped in APK)
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+
+# PLUGINS
+# =======
+# Plugin declarations map an alias to a Gradle plugin ID and version.
+# In build.gradle.kts: alias(libs.plugins.android.application)
+#
+# android-application   — the main Android Gradle Plugin (applies `android {}` block)
+# kotlin-android        — Kotlin/Android compiler integration
+# kotlin-compose        — Compose compiler plugin (separate since Kotlin 2.0)
+# ksp                   — Kotlin Symbol Processing (replaces kapt for annotation processing)
+#
+# Note: ksp version is NOT referenced from [versions] because it encodes the
+# Kotlin version as a prefix ("2.0.21-") and must be kept in sync manually
+# when upgrading Kotlin.
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
