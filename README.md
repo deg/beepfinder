@@ -10,6 +10,30 @@ It explains the Android-specific concepts in context rather than abstractly.
 
 ---
 
+## Back story
+
+I've been _vibe engineering_ for the past while -- using LLM aids to accelerate
+my programming tasks. But this was my my first experiement at true _vibe
+coding_.
+
+I have not done any Android programming since years ago, back in the day of
+Android 1.0 and 1.5. But I am an Android user and have long been annoyed by
+random beeps on my phone from unknown applications.  I figured this was a great
+chance to try vibe coding...
+
+This was coded by Claude Code, guided by Beads. The only interactions from me
+were:
+
+- About ten minutes of initial design
+- A round of brainstorming where I asked Claude to suggest improvements and I
+  voted yes/no on each, finally accepting fourteen changes
+- Rough ideas for the icon
+- Asking Claude to do a final round of refactoring and documentation
+
+This "Back story" section is the only human-written part of this repo to date.
+
+---
+
 ## What the app does
 
 1. A background **service** listens for every notification posted by any app.
