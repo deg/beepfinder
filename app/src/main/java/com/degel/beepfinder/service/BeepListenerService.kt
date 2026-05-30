@@ -11,6 +11,7 @@ import android.net.Uri
 import android.provider.MediaStore
 import androidx.core.app.NotificationCompat
 import android.service.notification.NotificationListenerService
+import android.service.notification.NotificationListenerService.Ranking
 import android.service.notification.StatusBarNotification
 import com.degel.beepfinder.MainActivity
 import com.degel.beepfinder.R
@@ -196,8 +197,8 @@ class BeepListenerService : NotificationListenerService() {
     /**
      * Returns true if the notification is expected to produce an audible alert.
      *
-     * The primary check is the NotificationChannel importance. Android 8+ apps
-     * configure sound behavior at the channel level, not per-notification:
+     * We gate on the NotificationChannel importance. Android 8+ apps configure
+     * sound behavior at the channel level, not per-notification:
      *
      *   IMPORTANCE_NONE (0)    — not shown at all
      *   IMPORTANCE_MIN (1)     — shown minimized, no sound
@@ -206,22 +207,29 @@ class BeepListenerService : NotificationListenerService() {
      *   IMPORTANCE_HIGH (4)    — makes sound, pops up
      *   IMPORTANCE_MAX (5)     — full-screen intent
      *
-     * The fallback (Notification.sound / Notification.defaults) handles the
-     * rare case of pre-Android-8 style notifications that lack a channel.
-     * These fields are deprecated in modern Android but still work.
+     * CRITICAL PITFALL — why we use the ranking map, not getNotificationChannel():
+     *
+     *   NotificationManager.getNotificationChannel(id) only ever returns channels
+     *   that THIS app (BeepFinder) created. Channels are per-package. A listener
+     *   cannot see another app's channel through its own NotificationManager — the
+     *   call returns null for every foreign notification. An earlier version did
+     *   exactly that, hit null for everything, fell through to a fail-closed
+     *   default, and silently stopped logging ALL beeps.
+     *
+     *   The correct source for a foreign notification's effective importance is
+     *   the listener's ranking map (getCurrentRanking()), which the OS populates
+     *   for every notification we're allowed to see.
+     *
+     * FAIL OPEN: if the ranking is somehow unavailable, we LOG rather than drop.
+     * BeepFinder's entire purpose is "never miss a beep" — a spurious entry is
+     * cheap; a missed one is the failure we exist to prevent.
      */
     private fun isAudible(sbn: StatusBarNotification): Boolean {
-        val channelId = sbn.notification.channelId
-        if (channelId != null) {
-            val channel = nm.getNotificationChannel(channelId)
-            if (channel != null) {
-                return channel.importance >= NotificationManager.IMPORTANCE_DEFAULT
-            }
+        val ranking = Ranking()
+        if (currentRanking.getRanking(sbn.key, ranking)) {
+            return ranking.importance >= NotificationManager.IMPORTANCE_DEFAULT
         }
-        // Pre-channel (API < 26) fallback: check the notification's own sound config.
-        val n = sbn.notification
-        @Suppress("DEPRECATION")
-        return n.sound != null || (n.defaults and Notification.DEFAULT_SOUND) != 0
+        return true
     }
 
     /**
@@ -241,8 +249,11 @@ class BeepListenerService : NotificationListenerService() {
      * the device's default notification sound — we return null for that case.
      */
     private fun resolveSoundLabel(sbn: StatusBarNotification): String? {
-        val channelId = sbn.notification.channelId ?: return null
-        val channel = nm.getNotificationChannel(channelId) ?: return null
+        // Same per-package pitfall as isAudible(): the posting app's channel is
+        // only reachable through the ranking map, never our own NotificationManager.
+        val ranking = Ranking()
+        if (!currentRanking.getRanking(sbn.key, ranking)) return null
+        val channel = ranking.channel ?: return null  // getChannel(): API 28+ (minSdk 29)
         val soundUri: Uri = channel.sound ?: return null  // null = device default
 
         try {
