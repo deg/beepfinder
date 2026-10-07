@@ -1,7 +1,10 @@
+# Apple
+.DS_Store
 
 # Dolt database files (added by bd init)
 .dolt/
 *.db
+.beads.gate.lock
 
 # Android build outputs
 build/
